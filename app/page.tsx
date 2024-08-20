@@ -1,17 +1,14 @@
 "use client";
 
-import { vaultContractABI, vaultContractAddress } from '@/constants/contracts'
-import useVault from '@/hooks/useVault'
+import VaultCard from "@/components/vaultcard";
+
+
 
 export default function Home() {
 
-  const {initDeposit, initWithdraw, readUserDepositedBalance} = useVault()
-
-
   return (
-    <div>
-     
-     
+    <div className="md:w-[90vw] flex flex-col space-y-4 mt-[20vh] lg:max-w-[80vw] mx-auto ">
+     <VaultCard/>
     </div>
   )
 }

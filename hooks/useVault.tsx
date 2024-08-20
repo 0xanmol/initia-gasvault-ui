@@ -1,13 +1,29 @@
 import { useCallback } from "react";
 import useWallet from "./useWallet";
-import { readContract, simulateContract, waitForTransactionReceipt, writeContract } from "wagmi/actions";
+import {
+  readContract,
+  simulateContract,
+  waitForTransactionReceipt,
+  writeContract,
+} from "wagmi/actions";
 import { stoneevm } from "@/constants/wagmi";
 import { vaultContractABI, vaultContractAddress } from "@/constants/contracts";
 import { parseUnits } from "viem";
 import { config } from "@/app/providers";
+import { ethers } from "ethers";
+import { useEthersSigner } from "./useEthersSigner";
+import { showFailedMessage } from "@/utils/toasts";
+import { parseError } from "@/utils/parseError";
 
 export default function useVault() {
-  const { switchNetwork, activeUserAddress, activeNetworkId, showBalance } = useWallet();
+  const { switchNetwork, activeUserAddress, activeNetworkId, showBalance } =
+    useWallet();
+  const signer = useEthersSigner();
+  const vault = new ethers.Contract(
+    vaultContractAddress,
+    vaultContractABI,
+    signer
+  );
 
   /**
    * TODO
@@ -19,7 +35,7 @@ export default function useVault() {
 
   const readUserDepositedBalance = useCallback(async () => {
     if (!activeUserAddress) {
-    throw new Error("User is not connected");
+      throw new Error("User is not connected");
     }
     const result = await readContract(config, {
       abi: vaultContractABI,
@@ -30,29 +46,34 @@ export default function useVault() {
     return result;
   }, [activeUserAddress]);
 
-  const initDeposit = async ({
-    amount
-  }: {amount : number}) => {
+  const initDeposit = async ({ amount }: { amount: number }) => {
     /**
      * STEPS:
-     * 
+     *
      * 1. Check if the user is connected to the right chain
      * 2. Compare amount entered and balance, leave some for gas, else error out accrodingly
      * 3. writeCall to the vault contract to deposit the amount
-     * 
+     *
      */
 
     try {
-        //we can move this into a function called sanityChecks later to prevent code duplication
-        if (!activeUserAddress) throw new Error("User not connected, Did you forget to connect?");
-        if (amount <= 0) throw new Error("Beep Boop, that amount looks wrong");
-        if (await activeNetworkId() !== stoneevm.id) {
-            await switchNetwork(stoneevm.id);
-        }
+      //we can move this into a function called sanityChecks later to prevent code duplication
+      if (!activeUserAddress)
+        throw new Error("User not connected, Did you forget to connect?");
 
-        if((await showBalance())! <= amount.toString()) throw new Error("Oopsie, you don't have enough balance to deposit");
+      if (amount <= 0 || !amount) throw new Error("Beep Boop, that amount looks wrong");
+      if ((await activeNetworkId()) !== stoneevm.id) {
+        await switchNetwork(stoneevm.id);
+      }
 
-        console.log("Amount to deposit: ", amount, parseUnits(amount.toString(), 18));
+      if (Number((await showBalance())!) <= amount) throw new Error("Oopsie, you don't have enough balance to deposit");
+
+      const valToDeposit = ethers.parseEther(amount.toString());
+      const tx = await vault.deposit({ value: valToDeposit });
+      console.log("Deposited!", (await tx).hash);
+  
+      /**  WAGMI IMPLEMENTATION ERRORS OUT FOR SOME REASON
+         * 
         const { request } = await simulateContract(config, {
             abi: vaultContractABI,
             address: vaultContractAddress,
@@ -65,44 +86,51 @@ export default function useVault() {
         if (receipt.status == "reverted") throw Error("DEPOSIT_ERROR: Transaction reverted");
 
         return receipt;
-       
-    } catch (error) {
-        console.error(error);
-     }
+        */
+
+      return (await tx).hash
+
+    } catch (error: any) {
+      console.error(error);
+      showFailedMessage({title: parseError(error)})
+    }
   };
 
-  const initWithdraw = async ({amount}:{amount: number}) => {
+  const initWithdraw = async ({ amount }: { amount: number }) => {
     /**
      * STEPS:
-     * 
+     *
      * 1. Check if the user is connected to the right chain
+     * 2. check user's deposited amount against the amount it wants to withdraw.
      * 2. writeCall to the vault contract to withdraw the amount
-     * 
+     *
      */
 
     try {
-        if (!activeUserAddress) throw new Error("User not connected, Did you forget to connect?");
-        if (await activeNetworkId() !== stoneevm.id) {
-            await switchNetwork(stoneevm.id);
-        }
+      if (!activeUserAddress)
+        throw new Error("User not connected, Did you forget to connect?");
+      if ((await activeNetworkId()) !== stoneevm.id) {
+        await switchNetwork(stoneevm.id);
+      }
 
-        if (amount <= 0) throw new Error("Beep Boop, that amount looks wrong");
-        if(await readUserDepositedBalance() <= amount) throw new Error("Oopsie, you don't have enough balance to withdraw");
+      if (amount <= 0) throw new Error("Beep Boop, that amount looks wrong");
+      if ((await readUserDepositedBalance()) <= amount)
+        throw new Error("Oopsie, you don't have enough balance to withdraw");
 
-        const { request } = await simulateContract(config, {
-            abi: vaultContractABI,
-            address: vaultContractAddress,
-            functionName: "withdraw",
-            args: [parseUnits(amount.toString(), 18)]
-        });
+      const { request } = await simulateContract(config, {
+        abi: vaultContractABI,
+        address: vaultContractAddress,
+        functionName: "withdraw",
+        args: [parseUnits(amount.toString(), 18)],
+      });
 
-        const hash = await writeContract(config, request);
-        const receipt = await waitForTransactionReceipt(config, { hash });
-        if (receipt.status == "reverted") throw Error("WITHDRAW_ERROR: Transaction reverted");
-       
+      const hash = await writeContract(config, request);
+      const receipt = await waitForTransactionReceipt(config, { hash });
+      if (receipt.status == "reverted")
+        throw Error("WITHDRAW_ERROR: Transaction reverted");
     } catch (error) {
-        console.error(error);
-     }
+      console.error(error);
+    }
   };
 
   return {

@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 import '@rainbow-me/rainbowkit/styles.css';
 import { Providers } from "./providers";
+import Header from "@/components/header";
+import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
   title: "Vault UI",
@@ -16,7 +18,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <Providers>{children}</Providers>
+        <Providers>
+          <Toaster/>
+          <Header/>
+          {children}</Providers>
       </body>
     </html>
   );
