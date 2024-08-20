@@ -12,7 +12,7 @@ import { parseUnits } from "viem";
 import { config } from "@/app/providers";
 import { ethers } from "ethers";
 import { useEthersSigner } from "./useEthersSigner";
-import { showFailedMessage } from "@/utils/toasts";
+import { showFailedMessage, showSuccessMessage } from "@/utils/toasts";
 import { parseError } from "@/utils/parseError";
 
 export default function useVault() {
@@ -31,6 +31,7 @@ export default function useVault() {
    * 1. function that reads the user's deposited balance from the vault contract deps: [address]
    * 2. function that deposits x amount into the vault contract deps: [address, amount]
    * 3. function that withdraws x amount from the vault contract deps: [address, amount]
+   * 4. function that reads the total deposited balance in the vault contract deps: []
    */
 
   const readUserDepositedBalance = useCallback(async () => {
@@ -87,7 +88,7 @@ export default function useVault() {
 
         return receipt;
         */
-
+      if ((await tx).hash) {showSuccessMessage({title: "Your Transaction was submitted successfully"})}
       return (await tx).hash
 
     } catch (error: any) {
@@ -128,13 +129,29 @@ export default function useVault() {
       const receipt = await waitForTransactionReceipt(config, { hash });
       if (receipt.status == "reverted")
         throw Error("WITHDRAW_ERROR: Transaction reverted");
+
+      if(receipt.status == "success") {
+        showSuccessMessage({title: "Your Transaction was submitted successfully"})
+        return receipt.transactionHash
+      }
     } catch (error) {
       console.error(error);
+      showFailedMessage({title: parseError(error)})
     }
   };
 
+  const readTotalDepositedBalance = useCallback(async () => {
+    const result = await readContract(config, {
+      abi: vaultContractABI,
+      address: vaultContractAddress,
+      functionName: "totalGas",
+    });
+    return result;
+  }, []);
+
   return {
     readUserDepositedBalance,
+    readTotalDepositedBalance,
     initDeposit,
     initWithdraw,
   };
