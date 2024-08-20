@@ -1,9 +1,10 @@
 import { useCallback } from "react";
 import useWallet from "./useWallet";
 import { readContract, simulateContract, waitForTransactionReceipt, writeContract } from "wagmi/actions";
-import { ethConfig, stoneevm } from "@/constants/wagmi";
+import { stoneevm } from "@/constants/wagmi";
 import { vaultContractABI, vaultContractAddress } from "@/constants/contracts";
 import { parseUnits } from "viem";
+import { config } from "@/app/providers";
 
 export default function useVault() {
   const { switchNetwork, activeUserAddress, activeNetworkId, showBalance } = useWallet();
@@ -20,7 +21,7 @@ export default function useVault() {
     if (!activeUserAddress) {
     throw new Error("User is not connected");
     }
-    const result = await readContract(ethConfig, {
+    const result = await readContract(config, {
       abi: vaultContractABI,
       address: vaultContractAddress,
       functionName: "balances",
@@ -51,16 +52,19 @@ export default function useVault() {
 
         if((await showBalance())! <= amount.toString()) throw new Error("Oopsie, you don't have enough balance to deposit");
 
-        const { request } = await simulateContract(ethConfig, {
+        console.log("Amount to deposit: ", amount, parseUnits(amount.toString(), 18));
+        const { request } = await simulateContract(config, {
             abi: vaultContractABI,
             address: vaultContractAddress,
             functionName: "deposit",
             value: parseUnits(amount.toString(), 18)
         });
 
-        const hash = await writeContract(ethConfig, request);
-        const receipt = await waitForTransactionReceipt(ethConfig, { hash });
+        const hash = await writeContract(config, request);
+        const receipt = await waitForTransactionReceipt(config, { hash });
         if (receipt.status == "reverted") throw Error("DEPOSIT_ERROR: Transaction reverted");
+
+        return receipt;
        
     } catch (error) {
         console.error(error);
@@ -85,15 +89,15 @@ export default function useVault() {
         if (amount <= 0) throw new Error("Beep Boop, that amount looks wrong");
         if(await readUserDepositedBalance() <= amount) throw new Error("Oopsie, you don't have enough balance to withdraw");
 
-        const { request } = await simulateContract(ethConfig, {
+        const { request } = await simulateContract(config, {
             abi: vaultContractABI,
             address: vaultContractAddress,
             functionName: "withdraw",
             args: [parseUnits(amount.toString(), 18)]
         });
 
-        const hash = await writeContract(ethConfig, request);
-        const receipt = await waitForTransactionReceipt(ethConfig, { hash });
+        const hash = await writeContract(config, request);
+        const receipt = await waitForTransactionReceipt(config, { hash });
         if (receipt.status == "reverted") throw Error("WITHDRAW_ERROR: Transaction reverted");
        
     } catch (error) {

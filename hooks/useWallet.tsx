@@ -1,4 +1,4 @@
-import { ethConfig } from "@/constants/wagmi";
+import { config } from "@/app/providers";
 import { useMemo } from "react";
 import { useSwitchChain, useAccount } from "wagmi";
 import { getBalance } from "wagmi/actions";
@@ -36,7 +36,7 @@ export default function useWallet() {
         if(!address) {
             return null
         }
-        const balance = await getBalance(ethConfig, { address: address })
+        const balance = await getBalance(config, { address: address })
         return balance.formatted
     }
 

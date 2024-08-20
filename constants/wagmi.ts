@@ -15,12 +15,13 @@ export const stoneevm = {
   } as const satisfies Chain;
 
 
-export const ethConfig = createConfig({
-  chains:[
-    stoneevm
-  ],
-  transports: {
-    [stoneevm.id]: http('https://json-rpc.stoneevm-16.initia.xyz'),
-  },
-  ssr: true,
-})
+// export const ethConfig = createConfig({
+//   chains:[
+//     stoneevm
+//   ],
+//   transports: {
+//     [stoneevm.id]: http('https://json-rpc.stoneevm-16.initia.xyz'),
+//   },
+//   ssr: true,
+  
+// })
