@@ -15,7 +15,7 @@ export default function VaultCard() {
 
   const { initDeposit, initWithdraw, readUserDepositedBalance, readTotalDepositedBalance } = useVault();
   const { showBalance } = useWallet();
-  const { isConnected } = useAccount();
+  const { isConnected, address } = useAccount();
 
 
   useEffect(() => {
@@ -84,14 +84,15 @@ export default function VaultCard() {
           onClick={async () => {
             setWithdrawLoading(true);
             try {
-              await initWithdraw({ amount: parseFloat(amount) });
-              await readUserDepositedBalance();
+              if (address) {
+                await initWithdraw({ amount: parseFloat(amount), address: address });
+                await readUserDepositedBalance();
+              }
             } catch (error) {
               console.error(error);
             } finally {
               setWithdrawLoading(false)
             }
-           
           }}
         >
           Withdraw

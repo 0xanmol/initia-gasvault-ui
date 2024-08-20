@@ -14,6 +14,8 @@ export const stoneevm = {
     
   } as const satisfies Chain;
 
+  export const gasLimit = BigInt(600_000)
+
 
 // export const ethConfig = createConfig({
 //   chains:[

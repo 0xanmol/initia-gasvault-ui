@@ -8,12 +8,13 @@ import {
 } from "wagmi/actions";
 import { stoneevm } from "@/constants/wagmi";
 import { vaultContractABI, vaultContractAddress } from "@/constants/contracts";
-import { parseUnits } from "viem";
+import { Address, parseUnits } from "viem";
 import { config } from "@/app/providers";
 import { ethers } from "ethers";
 import { useEthersSigner } from "./useEthersSigner";
 import { showFailedMessage, showSuccessMessage } from "@/utils/toasts";
 import { parseError } from "@/utils/parseError";
+import { gasLimit } from "@/constants/wagmi";
 
 export default function useVault() {
   const { switchNetwork, activeUserAddress, activeNetworkId, showBalance } =
@@ -70,7 +71,7 @@ export default function useVault() {
       if (Number((await showBalance())!) <= amount) throw new Error("Oopsie, you don't have enough balance to deposit");
 
       const valToDeposit = ethers.parseEther(amount.toString());
-      const tx = await vault.deposit({ value: valToDeposit });
+      const tx = await vault.deposit({ value: valToDeposit, gasLimit });
       console.log("Deposited!", (await tx).hash);
   
       /**  WAGMI IMPLEMENTATION ERRORS OUT FOR SOME REASON
@@ -97,7 +98,7 @@ export default function useVault() {
     }
   };
 
-  const initWithdraw = async ({ amount }: { amount: number }) => {
+  const initWithdraw = async ({ amount, address }: { amount: number, address: Address }) => {
     /**
      * STEPS:
      *
@@ -123,6 +124,8 @@ export default function useVault() {
         address: vaultContractAddress,
         functionName: "withdraw",
         args: [parseUnits(amount.toString(), 18)],
+        gas: gasLimit,
+        account: address
       });
 
       const hash = await writeContract(config, request);
